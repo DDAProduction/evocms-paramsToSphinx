@@ -1,0 +1,19 @@
+{
+  "name": "evolutioncms/paramsToViewAndSphinx",
+  "require": {
+
+  },
+  "autoload": {
+    "psr-4": {
+      "EvolutionCMS\\ParamsToViewAndSphinx\\": "src"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "EvolutionCMS\\ParamsToViewAndSphinx\\ParamsToViewAndSphinxServiceProvider"
+      ]
+
+    }
+  }
+}

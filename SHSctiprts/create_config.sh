@@ -1,0 +1,1 @@
+cat /etc/sphinxsearch/custom/*.conf > /etc/sphinxsearch/sphinx.conf
