@@ -15,8 +15,8 @@ class CategoryToView extends Migration
     {
         Schema::create('category_to_view', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->bigInteger('resource_id');
-            $table->bigInteger('category_id')->unique();
+            $table->bigInteger('resource_id')->unique();
+            $table->bigInteger('category_id');
             $table->string('view_name')->nullable();
             $table->boolean('check')->nullable();
             $table->timestamps();
