@@ -12,4 +12,5 @@
 8) Add to u cron jobs `php ***YOU_PROJECT_PATH***/core/artisan cron:build_view` 
 9) Add to u ***root*** cron jobs `sh ***YOU_PROJECT_PATH***/core/vendor/ddaproduction/evocms-params_to_sphinx/SHSctiprts/create_config.sh`
 
-
+### Warning
+5,6,7,9 Need configure only once per server
