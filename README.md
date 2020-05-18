@@ -3,8 +3,8 @@
 ## Install
 
 1) Install package [evocms-params](https://github.com/DDAProduction/evocms-params)
-2) `php artisan package:installrequire ddaproduction/evocms-evocms-params_to_sphinx "*"` in you **core/** folder
-3) `php artisan migrate --path=vendor/ddaproduction/evocms-evocms-params_to_sphinx/database/migrations`
+2) `php artisan package:installrequire ddaproduction/evocms-params_to_sphinx "*"` in you **core/** folder
+3) `php artisan migrate --path=vendor/ddaproduction/evocms-params_to_sphinx/database/migrations`
 4) Install sphinx 
 5) Create ***custom*** path in folder ***/etc/sphinxsearch/***
 6) Create in u folder main.conf with default config
