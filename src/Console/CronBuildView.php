@@ -3,21 +3,12 @@
 
 namespace EvolutionCMS\ParamsToViewAndSphinx\Console;
 
-use Egulias\EmailValidator\EmailValidator;
-use Egulias\EmailValidator\Validation\RFCValidation;
 use EvolutionCMS\Ddafilters\Models\FilterParams;
 use EvolutionCMS\Ddafilters\Models\FilterParamsCategory;
 use EvolutionCMS\Models\SiteContent;
-use EvolutionCMS\Models\SiteTmplvarContentvalue;
-use EvolutionCMS\Nosovski\Controllers\Support\SmsController;
-use EvolutionCMS\Nosovski\Models\CheckSms;
 use EvolutionCMS\ParamsToViewAndSphinx\Models\CategoryToView;
-use EvolutionCMS\Shop\Controllers\HelperController;
-use EvolutionCMS\Shop\Models\OrderProducts;
-use EvolutionCMS\Shop\Models\Orders;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\View;
-use modResource;
+
 
 class CronBuildView extends Command
 {
@@ -48,6 +39,7 @@ class CronBuildView extends Command
             $view_name = str_replace('-','_', $view_name);
             $parents = $modx->getChildIds($view->resource_id);
             $parents = array_values($parents);
+            $parents[] = $view->resource_id;
             foreach ($params as $param) {
                 $tableIteration++;
                 $paramData = FilterParams::find($param->param_id);
