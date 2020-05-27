@@ -12,6 +12,7 @@
     }
   ],
   "require": {
+    "foolz/sphinxql-query-builder": "*"
   },
   "autoload": {
     "psr-4": {

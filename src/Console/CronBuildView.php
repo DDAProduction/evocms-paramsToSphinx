@@ -9,7 +9,6 @@ use EvolutionCMS\Models\SiteContent;
 use EvolutionCMS\ParamsToViewAndSphinx\Models\CategoryToView;
 use Illuminate\Console\Command;
 
-
 class CronBuildView extends Command
 {
 
@@ -21,7 +20,6 @@ class CronBuildView extends Command
     public function handle()
     {
         $modx = EvolutionCMS();
-
         $views = CategoryToView::where('category_id', '>', 0)->get();
         $bar = $this->output->createProgressBar(count($views));
         $bar->start();
@@ -29,17 +27,17 @@ class CronBuildView extends Command
         $outConfigs = [];
         foreach ($views as $view) {
             $bar->advance();
-            $configs = ['sql_field_string = pagetitle','sql_field_string = content'];
+            $configs = ['sql_field_string = pagetitle', 'sql_field_string = content'];
             $select = [];
             $join = [];
             $tableIteration = 1;
-            $sphinxSelect = ['id','pagetitle','content'];
+            $sphinxSelect = ['id', 'pagetitle', 'content'];
             $params = FilterParamsCategory::where('category_id', $view->category_id)->get();
             $view_name = 'view_' . SiteContent::select('alias')->find($view->resource_id)->alias;
-            $view_name = str_replace('-','_', $view_name);
+            if ($view_name == 'view_') continue;
+            $view_name = str_replace('-', '_', $view_name);
             $parents = $modx->getChildIds($view->resource_id);
             $parents = array_values($parents);
-            $parents[] = $view->resource_id;
             foreach ($params as $param) {
                 $tableIteration++;
                 $paramData = FilterParams::find($param->param_id);
@@ -52,8 +50,11 @@ class CronBuildView extends Command
                     $sphinxSelect[] = 'clear_' . $paramData->alias;
                     $select[] = "CONCAT('" . $paramData->prefix . "', t" . $tableIteration . ".value) as " . $paramData->alias;
                     $select[] = "t" . $tableIteration . ".value as clear_" . $paramData->alias;
-
-                    $configs[] = "sql_attr_string = clear_" . $paramData->alias . "";
+                    if ($param->type_output == 'range' || $param->type_output == 'rangeslider') {
+                        $configs[] = "sql_attr_uint = clear_" . $paramData->alias . "";
+                    }else {
+                        $configs[] = "sql_attr_string = clear_" . $paramData->alias . "";
+                    }
                     $configs[] = "sql_attr_string = " . $paramData->alias . "";
                 }
                 $join[] = 'LEFT JOIN ' . $modx->getDatabase()->getFullTableName('site_tmplvar_contentvalues') . ' as t' . $tableIteration . ' 
@@ -92,14 +93,14 @@ class CronBuildView extends Command
                                 }
                                
                                 ";
-            $outConfigs[] = $sphinxConfig;
 
+            $outConfigs[] = $sphinxConfig;
 
 
         }
         $config_dir = '/etc/sphinxsearch/custom/';
         if (is_dir($config_dir)) {
-            file_put_contents($config_dir.md5(EVO_CORE_PATH).'.conf', implode("\n\n", $outConfigs));
+            file_put_contents($config_dir . md5(EVO_CORE_PATH) . '.conf', implode("\n\n", $outConfigs));
         } else {
             echo "Create custom config folder";
         }
