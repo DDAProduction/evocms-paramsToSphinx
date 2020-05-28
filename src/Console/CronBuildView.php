@@ -38,6 +38,7 @@ class CronBuildView extends Command
             $view_name = str_replace('-', '_', $view_name);
             $parents = $modx->getChildIds($view->resource_id);
             $parents = array_values($parents);
+            $parents[] = $view->resource_id;
             foreach ($params as $param) {
                 $tableIteration++;
                 $paramData = FilterParams::find($param->param_id);
@@ -61,6 +62,7 @@ class CronBuildView extends Command
                                 ON t1.id = t' . $tableIteration . '.contentid AND t' . $tableIteration . '.tmplvarid = ' . $paramData->tv_id;
 
             }
+            if(count($parents) == 0) continue;
             $query = "CREATE OR REPLACE VIEW  `" . $view_name . "` AS SELECT t1.id, t1.pagetitle, t1.content, " . implode(', ', $select) . " FROM " . $modx->getDatabase()->getFullTableName('site_content') . ' as t1
             ' . implode(' ', $join) . ' WHERE parent IN (' . implode(',', $parents) . ') AND template IN (' . $modx->getConfig('template_products') . ')';
             \DB::select(\DB::raw($query));
