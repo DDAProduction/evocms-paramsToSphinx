@@ -50,7 +50,7 @@ class SphinxFilterParams
     {
 
         $query = (new SphinxQL($this->conn))->select('id')
-            ->from($viewName);
+            ->from($viewName)->limit(100000)->option('max_matches', 100000);;
         $query = $this->make_filter($query, $filter);
         $result = $query->execute()->fetchAllAssoc();
 
