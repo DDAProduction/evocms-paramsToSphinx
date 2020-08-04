@@ -3,6 +3,7 @@
 
 namespace EvolutionCMS\ParamsToViewAndSphinx\Console;
 
+use Doctrine\DBAL\Driver\PDOException;
 use EvolutionCMS\Ddafilters\Models\FilterParams;
 use EvolutionCMS\Ddafilters\Models\FilterParamsCategory;
 use EvolutionCMS\Models\SiteContent;
@@ -26,6 +27,7 @@ class CronBuildView extends Command
         $dbConfig = include EVO_CORE_PATH . 'config/database/connections/default.php';
         $outConfigs = [];
         foreach ($views as $view) {
+
             $bar->advance();
             $configs = ['sql_field_string = pagetitle', 'sql_field_string = content'];
             $select = [];
@@ -39,17 +41,20 @@ class CronBuildView extends Command
             $parents = $modx->getChildIds($view->resource_id);
             $parents = array_values($parents);
             $parents[] = $view->resource_id;
+            if(count($parents)>0){
+                $parents = SiteContent::whereIn('id', $parents)->whereIn('template', explode(',', $modx->getConfig('template_category')))->pluck('id')->toArray();
+            }
             foreach ($params as $param) {
                 $tableIteration++;
                 $paramData = FilterParams::find($param->param_id);
                 $sphinxSelect[] = $paramData->alias;
                 if ($paramData->typeinput == 'select') {
-                    $select[] = 't' . $tableIteration . '.value as ' . $paramData->alias;
+                    $select[] = 't' . $tableIteration . '.value as `' . $paramData->alias.'`';
                     $configs[] = "sql_attr_multi = uint " . $paramData->alias . " from field " . $paramData->alias . "; ";
 
                 } else {
                     $sphinxSelect[] = 'clear_' . $paramData->alias;
-                    $select[] = "CONCAT('" . $paramData->prefix . "', t" . $tableIteration . ".value) as " . $paramData->alias;
+                    $select[] = "CONCAT('" . $paramData->prefix . "', t" . $tableIteration . ".value) as `" . $paramData->alias.'`';
                     $select[] = "t" . $tableIteration . ".value as clear_" . $paramData->alias;
                     if ($param->type_output == 'range' || $param->type_output == 'rangeslider') {
                         $configs[] = "sql_attr_uint = clear_" . $paramData->alias . "";
@@ -65,7 +70,13 @@ class CronBuildView extends Command
             if(count($parents) == 0) continue;
             $query = "CREATE OR REPLACE VIEW  `" . $view_name . "` AS SELECT t1.id, t1.pagetitle, t1.content, " . implode(', ', $select) . " FROM " . $modx->getDatabase()->getFullTableName('site_content') . ' as t1
             ' . implode(' ', $join) . ' WHERE parent IN (' . implode(',', $parents) . ') AND template IN (' . $modx->getConfig('template_products') . ')';
-            \DB::select(\DB::raw($query));
+            try {
+                \DB::select(\DB::raw($query));
+            }catch (PDOException $exception){
+                echo $exception->getMessage();
+                exit();
+            }
+
             $view->check = 1;
             $view->view_name = $view_name;
             $view->save();
