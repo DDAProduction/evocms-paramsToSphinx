@@ -26,6 +26,7 @@ class SphinxFilterParams
 
     public function getFilterParams($catId, $filter = [])
     {
+
         $arr_out = [];
         $this->conn->setParams(array('port' => 9306));
 
@@ -35,11 +36,11 @@ class SphinxFilterParams
         $param_name = $params->pluck('type_output', 'param_id')->toArray();
         $keys = array_keys($param_name);
         $params_ids = FilterParams::whereIn('id', $keys)->get();
+
         foreach ($params_ids as $params_id) {
             $this->param_name[$params_id->alias]['output'] = $param_name[$params_id->getKey()];
             $this->param_name[$params_id->alias]['input'] = $params_id->typeinput;
         }
-
         $arr_out['filters'] = $this->getFacets($catToView->view_name, $params, $filter);
         $arr_out['prodIds'] = $this->getProds($catToView->view_name, $filter);
         return $arr_out;
@@ -48,12 +49,13 @@ class SphinxFilterParams
 
     public function getProds($viewName, $filter)
     {
-
+        if(is_null($viewName)){
+            return [];
+        }
         $query = (new SphinxQL($this->conn))->select('id')
-            ->from($viewName);
+            ->from($viewName)->limit(100000)->option('max_matches', 100000);
         $query = $this->make_filter($query, $filter);
         $result = $query->execute()->fetchAllAssoc();
-
         return array_column($result, 'id');
 
     }
@@ -63,10 +65,22 @@ class SphinxFilterParams
 
         $result = [];
         foreach ($params as $param) {
+
             $temp_filter = $filter;
             $param_desc = FilterParams::find($param->param_id);
             unset($temp_filter[$param_desc->alias]);
+            if ($param_desc->typeinput == 'input') {
+                if (isset($temp_filter['from_' . $param_desc->alias])) {
+                    unset($temp_filter['from_' . $param_desc->alias]);
+                }
+                if (isset($temp_filter['to_' . $param_desc->alias])) {
+                    unset($temp_filter['to_' . $param_desc->alias]);
+                }
+
+            }
             if ($param_desc->typeinput == 'input') $param_desc->alias = 'clear_' . $param_desc->alias;
+
+
             $temp_facets = $this->getFacet($viewName, $param_desc->alias, $temp_filter, $param_desc, $param);
             $result = array_merge($result, $temp_facets);
         }
@@ -90,14 +104,18 @@ class SphinxFilterParams
         }
 
         $query = $this->make_filter($query, $filters);
+
         $facets = [];
         try {
+
             $result = $query->executeBatch();
             do {
                 if ($res = $result->store()) {
+
                     $res_alt = $res->getStored();
                     foreach ($res_alt as $item) {
                         $item = $item->fetchAssoc();
+
                         if (isset($item['count(*)'])) {
                             if ($param_desc->typeinput == 'input') {
                                 $item['alias'] = $param_desc->prefix . $item[$facet_name];
@@ -207,13 +225,25 @@ class SphinxFilterParams
                 $filters[] = array_pop($arr_url);
             }
         }
-        unset($_GET['q']);
+        
         $filter_array = $_GET;
+        $evo = EvolutionCMS();
+        $removeParams = $evo->getConfig('removeGetParamsFromFilter');
+        if(!is_null($removeParams)){
+            foreach ($removeParams as $removeParam){
+                unset($filter_array[$removeParam]);
+            }
+        }
+
+        $filter_array_check = $filter_array;
         if (count($filters) > 0) {
             $filter_array_temp = [];
+            $filter_array_temp_alt = [];
             $outFilter = FilterParamValues::whereIn('alias', $filters)->get();
+
             foreach ($outFilter as $item) {
                 $filter_array_temp[$item->param_id][] = $item->getKey();
+                $filter_array_temp_alt[$item->param_id][] = $item->toArray();
             }
             $keys = array_keys($filter_array_temp);
 
@@ -222,8 +252,11 @@ class SphinxFilterParams
             foreach ($filter_array_temp as $key => $value) {
                 $filter_array[$keys[$key]] = $value;
             }
+            foreach ($filter_array_temp_alt as $key => $value) {
+                $filter_array_check[$keys[$key]] = $value;
+            }
         }
-        return ['id'=>$id,'filters'=>$filter_array];
+        return ['id' => $id, 'filters' => $filter_array, 'filters_checked' => $filter_array_check];
 
 
     }
