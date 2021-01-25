@@ -47,6 +47,7 @@ class CronBuildView extends Command
             foreach ($params as $param) {
                 $tableIteration++;
                 $paramData = FilterParams::find($param->param_id);
+                if($paramData->alias == '') continue;
                 $sphinxSelect[] = '`'.$paramData->alias.'`';
                 if ($paramData->typeinput == 'select') {
                     $select[] = 't' . $tableIteration . '.value as `' . $paramData->alias.'`';
