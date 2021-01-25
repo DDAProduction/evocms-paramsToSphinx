@@ -30,7 +30,7 @@ class CronBuildView extends Command
 
             $bar->advance();
             $configs = ['sql_field_string = pagetitle', 'sql_field_string = content'];
-            $select = [];
+            $select = [1];
             $join = [];
             $tableIteration = 1;
             $sphinxSelect = ['id', 'pagetitle', 'content'];
@@ -45,6 +45,7 @@ class CronBuildView extends Command
                 $parents = SiteContent::whereIn('id', $parents)->whereIn('template', explode(',', $modx->getConfig('template_category')))->pluck('id')->toArray();
             }
             foreach ($params as $param) {
+
                 $tableIteration++;
                 $paramData = FilterParams::find($param->param_id);
                 if($paramData->alias == '') continue;
@@ -54,6 +55,7 @@ class CronBuildView extends Command
                     $configs[] = "sql_attr_multi = uint " . $paramData->alias . " from field " . $paramData->alias . "; ";
 
                 } else {
+
                     $sphinxSelect[] = 'clear_' . $paramData->alias;
                     $select[] = "CONCAT('" . $paramData->prefix . "', t" . $tableIteration . ".value) as `" . $paramData->alias.'`';
                     $select[] = "t" . $tableIteration . ".value as clear_" . $paramData->alias;
@@ -73,8 +75,13 @@ class CronBuildView extends Command
             ' . implode(' ', $join) . ' WHERE parent IN (' . implode(',', $parents) . ') AND template IN (' . $modx->getConfig('template_products') . ')';
             try {
                 \DB::select(\DB::raw($query));
-            }catch (PDOException $exception){
+            }catch (PDOException $exception) {
                 echo $exception->getMessage();
+                exit();
+            }
+            catch (\Exception $exception){
+                var_dump($paramData->prefix);
+                //echo $exception->getMessage();
                 exit();
             }
 

@@ -32,7 +32,7 @@ class SphinxFilterParams
 
         $catToView = CategoryToView::where('resource_id', $catId)->first();
         $params = FilterParamsCategory::where('category_id', $catToView->category_id)
-            ->where('show_in_category', 1)->get();
+            ->where('show_in_filter', 1)->get();
         $param_name = $params->pluck('type_output', 'param_id')->toArray();
         $keys = array_keys($param_name);
         $params_ids = FilterParams::whereIn('id', $keys)->get();
@@ -42,14 +42,18 @@ class SphinxFilterParams
             $this->param_name[$params_id->alias]['input'] = $params_id->typeinput;
         }
         $arr_out['filters'] = $this->getFacets($catToView->view_name, $params, $filter);
-        $arr_out['prodIds'] = $this->getProds($catToView->view_name, $filter);
+        try {
+            $arr_out['prodIds'] = $this->getProds($catToView->view_name, $filter);
+        }catch (\Exception $exception){
+            $arr_out['prodIds'] = [];
+        }
         return $arr_out;
     }
 
 
     public function getProds($viewName, $filter)
     {
-        if(is_null($viewName)){
+        if (is_null($viewName)) {
             return [];
         }
         $query = (new SphinxQL($this->conn))->select('id')
@@ -94,7 +98,7 @@ class SphinxFilterParams
     {
 
         $facet = new Facet($this->conn);
-        $facet->facet([$facet_name]);
+        $facet->facet([$facet_name])->limit(0, 100);
         $query = (new SphinxQL($this->conn));
         if ($param->type_output == 'range' || $param->type_output == 'rangeslider') {
             $query->select('MIN(' . $facet_name . ')', 'MAX(' . $facet_name . ')', $facet_name)->from($viewName)->facet($facet);
@@ -102,7 +106,6 @@ class SphinxFilterParams
             $query->select($facet_name)
                 ->from($viewName)->facet($facet);
         }
-
         $query = $this->make_filter($query, $filters);
 
         $facets = [];
@@ -113,10 +116,44 @@ class SphinxFilterParams
                 if ($res = $result->store()) {
 
                     $res_alt = $res->getStored();
-                    foreach ($res_alt as $item) {
-                        $item = $item->fetchAssoc();
 
-                        if (isset($item['count(*)'])) {
+                    if ($param->type_output == 'range' || $param->type_output == 'rangeslider') {
+                        foreach ($res_alt as $item) {
+                            $item = $item->fetchAssoc();
+                            if (isset($item['count(*)'])) {
+                                /*
+                                if ($param_desc->typeinput == 'input') {
+                                    $item['alias'] = $param_desc->prefix . $item[$facet_name];
+                                    $unit = FilterParamsUnits::find($param_desc->unit_id);
+                                    $item['unit_ru'] = $unit->desc_ru;
+                                    $item['unit_ua'] = $unit->desc_ua;
+                                    $item['unit_en'] = $unit->desc_en;
+                                } else {
+                                    $filter_value = FilterParamValues::find($item[$facet_name]);
+
+                                    $item['alias'] = $filter_value->alias;
+                                    $item[$facet_name . '_ru'] = $filter_value->value_ru;
+                                    $item[$facet_name . '_en'] = $filter_value->value_en;
+                                    $item[$facet_name . '_ua'] = $filter_value->value_ua;
+
+                                }
+                                $facets[$facet_name]['param'][] = $item;*/
+                            } else {
+                                if (isset($item['min(' . $facet_name . ')'])) {
+                                    $facets[$facet_name]['min'] = $item['min(' . $facet_name . ')'];
+                                }
+                                if (isset($item['max(' . $facet_name . ')'])) {
+                                    $facets[$facet_name]['max'] = $item['max(' . $facet_name . ')'];
+                                }
+
+                            }
+
+                        }
+                    } else {
+                        $res->getNext();
+                        $data = $res->getNext();
+                        $items = $data->getStored();
+                        foreach ($items as $item) {
                             if ($param_desc->typeinput == 'input') {
                                 $item['alias'] = $param_desc->prefix . $item[$facet_name];
                                 $unit = FilterParamsUnits::find($param_desc->unit_id);
@@ -133,19 +170,8 @@ class SphinxFilterParams
 
                             }
                             $facets[$facet_name]['param'][] = $item;
-                        } else {
-                            if (isset($item['min(' . $facet_name . ')'])) {
-                                $facets[$facet_name]['min'] = $item['min(' . $facet_name . ')'];
-                            }
-                            if (isset($item['max(' . $facet_name . ')'])) {
-                                $facets[$facet_name]['max'] = $item['max(' . $facet_name . ')'];
-                            }
-
                         }
-
                     }
-
-                    //$res->();
                 }
             } while ($result->store() && $result->getNext());
             $facets[$facet_name]['desc_out'] = $param->toArray();
@@ -158,7 +184,7 @@ class SphinxFilterParams
         return $facets;
     }
 
-    public function make_filter($query, $filters)
+    public function make_filter($query, $filters): SphinxQL
     {
 
         foreach ($filters as $key => $filter) {
@@ -225,12 +251,12 @@ class SphinxFilterParams
                 $filters[] = array_pop($arr_url);
             }
         }
-        
+
         $filter_array = $_GET;
         $evo = EvolutionCMS();
         $removeParams = $evo->getConfig('removeGetParamsFromFilter');
-        if(!is_null($removeParams)){
-            foreach ($removeParams as $removeParam){
+        if (!is_null($removeParams)) {
+            foreach ($removeParams as $removeParam) {
                 unset($filter_array[$removeParam]);
             }
         }
